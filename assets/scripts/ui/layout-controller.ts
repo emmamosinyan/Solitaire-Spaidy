@@ -1,4 +1,4 @@
-import { _decorator, Component, Node, Widget, view, UITransform, Layout, Size, UIOpacity, tween } from 'cc';
+import { _decorator, Component, Node, Widget, view, UITransform, Layout, Size, UIOpacity, tween, Vec3 } from 'cc';
 import { GlobalEventBus } from 'db://assets/scripts/common/event-bus';
 import { EVT_LAYOUT_REBUILT } from 'db://assets/scripts/common/events';
 
@@ -83,6 +83,12 @@ export class LayoutController extends Component {
     @property({ tooltip: 'CageWidget — масштаб в landscape (1 = без изменений)' })
     private cageLandscapeScale: number = 0.5;
 
+    @property({ tooltip: 'CageWidget — отступ сверху в portrait (при возврате из landscape)' })
+    private cagePortraitTop: number = 50;
+
+    @property({ tooltip: 'CageWidget — отступ справа в portrait (при возврате из landscape)' })
+    private cagePortraitRight: number = 50;
+
     @property({ type: Node, tooltip: 'ExplainerMessage — объясняющее сообщение' })
     private explainerMessage?: Node;
 
@@ -127,6 +133,10 @@ export class LayoutController extends Component {
     private cagePortraitScale: number = 1;
     private explainerMessagePortraitScale: number = 1;
     private explainerMessage001PortraitScale: number = 1;
+    private progressBarPortraitPosition?: Vec3;
+    private cagePortraitPosition?: Vec3;
+    private explainerMessagePortraitPosition?: Vec3;
+    private explainerMessage001PortraitPosition?: Vec3;
     private baselineCardStackWidth: number = 0;
     private baselineCardStackHeight: number = 0;
     private isInitialSetup: boolean = true;
@@ -181,7 +191,7 @@ export class LayoutController extends Component {
             this.playNowPortraitScale = this.playNowWidget.scale.x;
         }
 
-        // Для progressBarWidget сохраняем только масштаб — Widget добавляется лениво при первом landscape
+        // Для progressBarWidget сохраняем только масштаб — позиция сохраняется при первом переходе в landscape
         if (this.progressBarWidget) {
             this.progressBarPortraitScale = this.progressBarWidget.scale.x;
         }
@@ -210,17 +220,14 @@ export class LayoutController extends Component {
             }
         }
 
-        // Для cageWidget сохраняем только масштаб — Widget добавляется лениво при первом landscape
+        // Для cageWidget, explainerMessage, explainerMessage001 сохраняем только масштаб —
+        // позиции сохраняются при первом переходе в landscape, после того как Widget успел применить portrait alignment
         if (this.cageWidget) {
             this.cagePortraitScale = this.cageWidget.scale.x;
         }
-
-        // Для explainerMessage сохраняем только масштаб — Widget добавляется лениво при первом landscape
         if (this.explainerMessage) {
             this.explainerMessagePortraitScale = this.explainerMessage.scale.x;
         }
-
-        // Для explainerMessage001 сохраняем только масштаб — Widget добавляется лениво при первом landscape
         if (this.explainerMessage001) {
             this.explainerMessage001PortraitScale = this.explainerMessage001.scale.x;
         }
@@ -276,8 +283,35 @@ export class LayoutController extends Component {
             // Масштабируем background НЕМЕДЛЕННО, вне debounce механизма
             this.scaleBackground();
 
-            if (!this.isInitialSetup) {
-                this.hideUI();
+            // Определяем новую ориентацию немедленно
+            const visibleSize = view.getVisibleSize();
+            const isPortrait = visibleSize.height > visibleSize.width;
+
+            // Немедленно синхронизируем gameplayContainer Widget с новой ориентацией —
+            // иначе Cocos auto-update применит старые portrait-настройки к landscape-канвасу
+            // и карточные стопки исчезнут на время debounce
+            this.setupGameplayContainerWidget(isPortrait);
+
+            // При возврате в portrait немедленно нейтрализуем lazy Widgets —
+            // иначе Cocos auto-update применит их landscape-настройки к portrait-канвасу
+            // и узлы (клетка и т.д.) уйдут за пределы экрана
+            if (isPortrait) {
+                if (this.cageWidgetComponent) {
+                    this.neutralizeWidget(this.cageWidgetComponent);
+                    this.cageWidgetComponent = undefined;
+                }
+                if (this.progressBarWidgetComponent) {
+                    this.neutralizeWidget(this.progressBarWidgetComponent);
+                    this.progressBarWidgetComponent = undefined;
+                }
+                if (this.explainerMessageWidgetComponent) {
+                    this.neutralizeWidget(this.explainerMessageWidgetComponent);
+                    this.explainerMessageWidgetComponent = undefined;
+                }
+                if (this.explainerMessage001WidgetComponent) {
+                    this.neutralizeWidget(this.explainerMessage001WidgetComponent);
+                    this.explainerMessage001WidgetComponent = undefined;
+                }
             }
 
             // Очищаем предыдущий таймер, если он существует
@@ -317,7 +351,6 @@ export class LayoutController extends Component {
     private checkOrientationChange(): void {
         const visibleSize = view.getVisibleSize();
         const newOrientation: 'portrait' | 'landscape' = visibleSize.height > visibleSize.width ? 'portrait' : 'landscape';
-        this.showUI();
 
         if (newOrientation !== this.currentOrientation) {
             this.currentOrientation = newOrientation;
@@ -349,11 +382,6 @@ export class LayoutController extends Component {
      * Настраивает масштабирование gameplayContainer в зависимости от ориентации экрана
      */
     private setupGameplayContainerScaling(): void {
-        // Скрываем UI в начале перестройки (кроме первого запуска)
-        if (!this.isInitialSetup) {
-            this.hideUI();
-        }
-
         const visibleSize = view.getVisibleSize();
         const isPortrait = visibleSize.height > visibleSize.width;
 
@@ -372,22 +400,20 @@ export class LayoutController extends Component {
             this.resizeCardStacks(isPortrait);
         }, 0);
 
-        // Показываем UI после завершения всех операций (кроме первого запуска)
-        if (!this.isInitialSetup) {
+        // Второй проход через Widget'ы — только в portrait, чтобы canvas успел завершить resize
+        if (isPortrait) {
             this.scheduleOnce(() => {
-                // Публикуем событие о завершении перестройки ДО fade in
-                GlobalEventBus.publish({ type: EVT_LAYOUT_REBUILT });
-                this.showUI();
-            }, 0.1); // 0.02 (максимальная задержка в resizeCardStacks) + 0.08 буфер
+                this.setupGameplayContainerWidget(isPortrait);
+                this.setupLogoWidget(isPortrait);
+                this.setupPlayNowWidget(isPortrait);
+            }, 0.08);
         }
 
-        // После первой настройки разрешаем скрывать UI и публикуем событие
-        if (this.isInitialSetup) {
-            // Для первоначальной настройки публикуем событие после максимальной задержки
-            this.scheduleOnce(() => {
-                GlobalEventBus.publish({ type: EVT_LAYOUT_REBUILT });
-            }, 0.15); // Чуть больше максимальной задержки в resizeCardStacks (0.02)
-        }
+        // Публикуем событие о завершении перестройки
+        this.scheduleOnce(() => {
+            GlobalEventBus.publish({ type: EVT_LAYOUT_REBUILT });
+        }, 0.15);
+
         this.isInitialSetup = false;
     }
 
@@ -539,6 +565,21 @@ export class LayoutController extends Component {
     }
 
     /**
+     * Сбрасывает все флаги выравнивания, отключает и уничтожает Widget.
+     * Гарантирует, что отложенный lateUpdate Widget'а не переопределит portrait позицию.
+     */
+    private neutralizeWidget(w: Widget): void {
+        w.isAlignTop = false;
+        w.isAlignBottom = false;
+        w.isAlignLeft = false;
+        w.isAlignRight = false;
+        w.isAlignHorizontalCenter = false;
+        w.isAlignVerticalCenter = false;
+        w.enabled = false;
+        w.destroy();
+    }
+
+    /**
      * Настраивает Widget для progressBarWidget
      */
     private setupProgressBarWidget(isPortrait: boolean): void {
@@ -546,11 +587,18 @@ export class LayoutController extends Component {
 
         if (isPortrait) {
             if (this.progressBarWidgetComponent) {
-                this.progressBarWidgetComponent.enabled = false;
+                this.neutralizeWidget(this.progressBarWidgetComponent);
+                this.progressBarWidgetComponent = undefined;
             }
-            this.progressBarWidget.setScale(this.progressBarPortraitScale, this.progressBarPortraitScale, 1);
+            const pbPos = this.progressBarPortraitPosition;
+            const pbScale = this.progressBarPortraitScale;
+            this.scheduleOnce(() => {
+                if (pbPos) this.progressBarWidget!.setPosition(pbPos);
+                this.progressBarWidget!.setScale(pbScale, pbScale, 1);
+            }, 0);
         } else {
             if (!this.progressBarWidgetComponent) {
+                this.progressBarPortraitPosition = this.progressBarWidget.position.clone();
                 this.progressBarWidgetComponent = this.progressBarWidget.getComponent(Widget) ?? this.progressBarWidget.addComponent(Widget);
             }
             this.progressBarWidgetComponent.enabled = true;
@@ -574,14 +622,33 @@ export class LayoutController extends Component {
         if (!this.cageWidget) return;
 
         if (isPortrait) {
-            // Portrait: отключаем Widget если он уже создан, восстанавливаем масштаб
             if (this.cageWidgetComponent) {
-                this.cageWidgetComponent.enabled = false;
+                this.neutralizeWidget(this.cageWidgetComponent);
+                this.cageWidgetComponent = undefined;
             }
-            this.cageWidget.setScale(this.cagePortraitScale, this.cagePortraitScale, 1);
+            const top = this.cagePortraitTop;
+            const right = this.cagePortraitRight;
+            const scale = this.cagePortraitScale;
+            this.scheduleOnce(() => {
+                if (!this.cageWidget) return;
+                // Вычисляем позицию как Widget: right/top отступы от родительского узла
+                const parent = this.cageWidget.parent;
+                const parentT = parent?.getComponent(UITransform);
+                const vs = view.getVisibleSize();
+                const parentW = parentT ? parentT.width : vs.width;
+                const parentH = parentT ? parentT.height : vs.height;
+                const t = this.cageWidget.getComponent(UITransform);
+                const nodeW = t ? t.width * scale : 0;
+                const nodeH = t ? t.height * scale : 0;
+                const localX = parentW / 2 - right - nodeW / 2;
+                const localY = parentH / 2 - top - nodeH / 2;
+                this.cageWidget.setPosition(localX, localY, 0);
+                this.cageWidget.setScale(scale, scale, 1);
+            }, 0);
         } else {
             // Landscape: лениво создаём Widget при первом переходе, правый верхний угол
             if (!this.cageWidgetComponent) {
+                this.cagePortraitPosition = this.cageWidget.position.clone();
                 this.cageWidgetComponent = this.cageWidget.getComponent(Widget) ?? this.cageWidget.addComponent(Widget);
             }
             this.cageWidgetComponent.enabled = true;
@@ -606,11 +673,18 @@ export class LayoutController extends Component {
 
         if (isPortrait) {
             if (this.explainerMessageWidgetComponent) {
-                this.explainerMessageWidgetComponent.enabled = false;
+                this.neutralizeWidget(this.explainerMessageWidgetComponent);
+                this.explainerMessageWidgetComponent = undefined;
             }
-            this.explainerMessage.setScale(this.explainerMessagePortraitScale, this.explainerMessagePortraitScale, 1);
+            const emPos = this.explainerMessagePortraitPosition;
+            const emScale = this.explainerMessagePortraitScale;
+            this.scheduleOnce(() => {
+                if (emPos) this.explainerMessage!.setPosition(emPos);
+                this.explainerMessage!.setScale(emScale, emScale, 1);
+            }, 0);
         } else {
             if (!this.explainerMessageWidgetComponent) {
+                this.explainerMessagePortraitPosition = this.explainerMessage.position.clone();
                 this.explainerMessageWidgetComponent = this.explainerMessage.getComponent(Widget) ?? this.explainerMessage.addComponent(Widget);
             }
             this.explainerMessageWidgetComponent.enabled = true;
@@ -635,11 +709,18 @@ export class LayoutController extends Component {
 
         if (isPortrait) {
             if (this.explainerMessage001WidgetComponent) {
-                this.explainerMessage001WidgetComponent.enabled = false;
+                this.neutralizeWidget(this.explainerMessage001WidgetComponent);
+                this.explainerMessage001WidgetComponent = undefined;
             }
-            this.explainerMessage001.setScale(this.explainerMessage001PortraitScale, this.explainerMessage001PortraitScale, 1);
+            const em1Pos = this.explainerMessage001PortraitPosition;
+            const em1Scale = this.explainerMessage001PortraitScale;
+            this.scheduleOnce(() => {
+                if (em1Pos) this.explainerMessage001!.setPosition(em1Pos);
+                this.explainerMessage001!.setScale(em1Scale, em1Scale, 1);
+            }, 0);
         } else {
             if (!this.explainerMessage001WidgetComponent) {
+                this.explainerMessage001PortraitPosition = this.explainerMessage001.position.clone();
                 this.explainerMessage001WidgetComponent = this.explainerMessage001.getComponent(Widget) ?? this.explainerMessage001.addComponent(Widget);
             }
             this.explainerMessage001WidgetComponent.enabled = true;

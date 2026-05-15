@@ -680,7 +680,7 @@
     "_lpos": {
       "__type__": "cc.Vec3",
       "x": -350,
-      "y": 700,
+      "y": 730,
       "z": 0
     },
     "_lrot": {
@@ -1998,7 +1998,9 @@
     "_enabled": true,
     "__prefab": null,
     "_alignFlags": 33,
-    "_target": null,
+    "_target": {
+      "__id__": 2
+    },
     "_left": 0,
     "_right": 50,
     "_top": 50,
@@ -2013,7 +2015,7 @@
     "_isAbsVerticalCenter": true,
     "_originalWidth": 0,
     "_originalHeight": 0,
-    "_alignMode": 2,
+    "_alignMode": 1,
     "_lockFlags": 0,
     "_id": "3e1IebOGlLFp/heFbqUjXp"
   },
@@ -9165,6 +9167,8 @@
     "cageLandscapeTop": 500,
     "cageLandscapeRight": 350,
     "cageLandscapeScale": 2,
+    "cagePortraitTop": 50,
+    "cagePortraitRight": 50,
     "explainerMessage": {
       "__id__": 12
     },
