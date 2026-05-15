@@ -18,6 +18,9 @@ export class LayoutController extends Component {
     @property({ type: UITransform, tooltip: 'Фон для масштабирования под разрешение экрана' })
     private background?: UITransform;
 
+    @property({ tooltip: 'Дополнительный множитель масштаба фона в landscape (1 = без изменений)' })
+    private landscapeBackgroundScale: number = 1;
+
     @property({ type: [Node] })
     private landscapeScaleElements: Node[] = [];
 
@@ -36,6 +39,74 @@ export class LayoutController extends Component {
     @property(UIOpacity)
     private parentOpacity?: UIOpacity;
 
+    // === Landscape позиции ===
+
+    @property({ tooltip: 'Logo — отступ сверху в landscape' })
+    private logoLandscapeTop: number = 100;
+
+    @property({ tooltip: 'Logo — отступ слева в landscape' })
+    private logoLandscapeLeft: number = 70;
+
+    @property({ tooltip: 'Logo — масштаб в landscape (1 = без изменений)' })
+    private logoLandscapeScale: number = 1;
+
+    @property({ type: Node, tooltip: 'Прогресс-бар / счёт' })
+    private progressBarWidget?: Node;
+
+    @property({ tooltip: 'Progress Bar — отступ сверху в landscape' })
+    private progressBarLandscapeTop: number = 100;
+
+    @property({ tooltip: 'Progress Bar — отступ слева в landscape' })
+    private progressBarLandscapeLeft: number = 70;
+
+    @property({ tooltip: 'Progress Bar — масштаб в landscape (1 = без изменений)' })
+    private progressBarLandscapeScale: number = 1;
+
+    @property({ tooltip: 'Play Now — отступ сверху в landscape' })
+    private playNowLandscapeTop: number = 100;
+
+    @property({ tooltip: 'Play Now — отступ справа в landscape' })
+    private playNowLandscapeRight: number = 70;
+
+    @property({ tooltip: 'Play Now — масштаб в landscape (1 = без изменений)' })
+    private playNowLandscapeScale: number = 1;
+
+    @property({ type: Node, tooltip: 'CageWidget — родительский узел клетки, персонажа и замков' })
+    private cageWidget?: Node;
+
+    @property({ tooltip: 'CageWidget — отступ сверху в landscape' })
+    private cageLandscapeTop: number = 60;
+
+    @property({ tooltip: 'CageWidget — отступ справа в landscape' })
+    private cageLandscapeRight: number = 60;
+
+    @property({ tooltip: 'CageWidget — масштаб в landscape (1 = без изменений)' })
+    private cageLandscapeScale: number = 0.5;
+
+    @property({ type: Node, tooltip: 'ExplainerMessage — объясняющее сообщение' })
+    private explainerMessage?: Node;
+
+    @property({ tooltip: 'ExplainerMessage — отступ сверху в landscape' })
+    private explainerMessageLandscapeTop: number = 100;
+
+    @property({ tooltip: 'ExplainerMessage — отступ слева в landscape' })
+    private explainerMessageLandscapeLeft: number = 70;
+
+    @property({ tooltip: 'ExplainerMessage — масштаб в landscape (1 = без изменений)' })
+    private explainerMessageLandscapeScale: number = 1;
+
+    @property({ type: Node, tooltip: 'ExplainerMessage-001 — второе объясняющее сообщение' })
+    private explainerMessage001?: Node;
+
+    @property({ tooltip: 'ExplainerMessage-001 — отступ сверху в landscape' })
+    private explainerMessage001LandscapeTop: number = 100;
+
+    @property({ tooltip: 'ExplainerMessage-001 — отступ слева в landscape' })
+    private explainerMessage001LandscapeLeft: number = 70;
+
+    @property({ tooltip: 'ExplainerMessage-001 — масштаб в landscape (1 = без изменений)' })
+    private explainerMessage001LandscapeScale: number = 1;
+
     // Private properties
     private currentOrientation: 'portrait' | 'landscape' = 'portrait';
     private onResizeCallback?: () => void;
@@ -46,6 +117,16 @@ export class LayoutController extends Component {
     private tableauLayoutWidget?: Widget;
     private foundationLayoutWidget?: Widget;
     private stockWasteLayoutWidget?: Widget;
+    private progressBarWidgetComponent?: Widget;
+    private cageWidgetComponent?: Widget;
+    private explainerMessageWidgetComponent?: Widget;
+    private explainerMessage001WidgetComponent?: Widget;
+    private logoPortraitScale: number = 1;
+    private playNowPortraitScale: number = 1;
+    private progressBarPortraitScale: number = 1;
+    private cagePortraitScale: number = 1;
+    private explainerMessagePortraitScale: number = 1;
+    private explainerMessage001PortraitScale: number = 1;
     private baselineCardStackWidth: number = 0;
     private baselineCardStackHeight: number = 0;
     private isInitialSetup: boolean = true;
@@ -88,6 +169,7 @@ export class LayoutController extends Component {
             if (!this.logoWidgetComponent) {
                 this.logoWidgetComponent = this.logoWidget.addComponent(Widget);
             }
+            this.logoPortraitScale = this.logoWidget.scale.x;
         }
 
         // Инициализируем Widget для playNowWidget
@@ -96,6 +178,12 @@ export class LayoutController extends Component {
             if (!this.playNowWidgetComponent) {
                 this.playNowWidgetComponent = this.playNowWidget.addComponent(Widget);
             }
+            this.playNowPortraitScale = this.playNowWidget.scale.x;
+        }
+
+        // Для progressBarWidget сохраняем только масштаб — Widget добавляется лениво при первом landscape
+        if (this.progressBarWidget) {
+            this.progressBarPortraitScale = this.progressBarWidget.scale.x;
         }
 
         // Инициализируем Widget для tableauLayout
@@ -121,6 +209,21 @@ export class LayoutController extends Component {
                 this.stockWasteLayoutWidget = this.stockWasteLayout.addComponent(Widget);
             }
         }
+
+        // Для cageWidget сохраняем только масштаб — Widget добавляется лениво при первом landscape
+        if (this.cageWidget) {
+            this.cagePortraitScale = this.cageWidget.scale.x;
+        }
+
+        // Для explainerMessage сохраняем только масштаб — Widget добавляется лениво при первом landscape
+        if (this.explainerMessage) {
+            this.explainerMessagePortraitScale = this.explainerMessage.scale.x;
+        }
+
+        // Для explainerMessage001 сохраняем только масштаб — Widget добавляется лениво при первом landscape
+        if (this.explainerMessage001) {
+            this.explainerMessage001PortraitScale = this.explainerMessage001.scale.x;
+        }
     }
 
     /**
@@ -133,6 +236,10 @@ export class LayoutController extends Component {
         this.tableauLayoutWidget = undefined;
         this.foundationLayoutWidget = undefined;
         this.stockWasteLayoutWidget = undefined;
+        this.progressBarWidgetComponent = undefined;
+        this.cageWidgetComponent = undefined;
+        this.explainerMessageWidgetComponent = undefined;
+        this.explainerMessage001WidgetComponent = undefined;
     }
 
     /**
@@ -255,7 +362,11 @@ export class LayoutController extends Component {
         this.applyTransformations(isPortrait);
         this.setupGameplayContainerWidget(isPortrait);
         this.setupLogoWidget(isPortrait);
+        this.setupProgressBarWidget(isPortrait);
         this.setupPlayNowWidget(isPortrait);
+        this.setupCageWidget(isPortrait);
+        this.setupExplainerMessageWidget(isPortrait);
+        this.setupExplainerMessage001Widget(isPortrait);
 
         this.scheduleOnce(() => {
             this.resizeCardStacks(isPortrait);
@@ -375,19 +486,21 @@ export class LayoutController extends Component {
                 this.logoWidgetComponent.isAlignHorizontalCenter = false;
                 this.logoWidgetComponent.isAlignVerticalCenter = false;
                 this.logoWidgetComponent.top = 100;
-                this.logoWidgetComponent.left = 100;
+                this.logoWidgetComponent.left = 50;
                 this.logoWidgetComponent.updateAlignment();
+                this.logoWidget.setScale(this.logoPortraitScale, this.logoPortraitScale, 1);
             } else {
-                // Landscape: левый верхний угол с отступом left 70 top 100
+                // Landscape: позиция из инспектора
                 this.logoWidgetComponent.isAlignTop = true;
                 this.logoWidgetComponent.isAlignBottom = false;
                 this.logoWidgetComponent.isAlignLeft = true;
                 this.logoWidgetComponent.isAlignRight = false;
                 this.logoWidgetComponent.isAlignHorizontalCenter = false;
                 this.logoWidgetComponent.isAlignVerticalCenter = false;
-                this.logoWidgetComponent.top = 100;
-                this.logoWidgetComponent.left = 70;
+                this.logoWidgetComponent.top = this.logoLandscapeTop;
+                this.logoWidgetComponent.left = this.logoLandscapeLeft;
                 this.logoWidgetComponent.updateAlignment();
+                this.logoWidget.setScale(this.logoLandscapeScale, this.logoLandscapeScale, 1);
             }
         }
     }
@@ -408,18 +521,138 @@ export class LayoutController extends Component {
                 this.playNowWidgetComponent.bottom = 200;
                 this.playNowWidgetComponent.horizontalCenter = 0;
                 this.playNowWidgetComponent.updateAlignment();
+                this.playNowWidget.setScale(this.playNowPortraitScale, this.playNowPortraitScale, 1);
             } else {
-                // Landscape: правый верхний угол с отступом right 70 top 100
+                // Landscape: позиция из инспектора
                 this.playNowWidgetComponent.isAlignTop = true;
                 this.playNowWidgetComponent.isAlignBottom = false;
                 this.playNowWidgetComponent.isAlignLeft = false;
                 this.playNowWidgetComponent.isAlignRight = true;
                 this.playNowWidgetComponent.isAlignHorizontalCenter = false;
                 this.playNowWidgetComponent.isAlignVerticalCenter = false;
-                this.playNowWidgetComponent.top = 100;
-                this.playNowWidgetComponent.right = 70;
+                this.playNowWidgetComponent.top = this.playNowLandscapeTop;
+                this.playNowWidgetComponent.right = this.playNowLandscapeRight;
                 this.playNowWidgetComponent.updateAlignment();
+                this.playNowWidget.setScale(this.playNowLandscapeScale, this.playNowLandscapeScale, 1);
             }
+        }
+    }
+
+    /**
+     * Настраивает Widget для progressBarWidget
+     */
+    private setupProgressBarWidget(isPortrait: boolean): void {
+        if (!this.progressBarWidget) return;
+
+        if (isPortrait) {
+            if (this.progressBarWidgetComponent) {
+                this.progressBarWidgetComponent.enabled = false;
+            }
+            this.progressBarWidget.setScale(this.progressBarPortraitScale, this.progressBarPortraitScale, 1);
+        } else {
+            if (!this.progressBarWidgetComponent) {
+                this.progressBarWidgetComponent = this.progressBarWidget.getComponent(Widget) ?? this.progressBarWidget.addComponent(Widget);
+            }
+            this.progressBarWidgetComponent.enabled = true;
+            this.progressBarWidgetComponent.isAlignTop = true;
+            this.progressBarWidgetComponent.isAlignBottom = false;
+            this.progressBarWidgetComponent.isAlignLeft = true;
+            this.progressBarWidgetComponent.isAlignRight = false;
+            this.progressBarWidgetComponent.isAlignHorizontalCenter = false;
+            this.progressBarWidgetComponent.isAlignVerticalCenter = false;
+            this.progressBarWidgetComponent.top = this.progressBarLandscapeTop;
+            this.progressBarWidgetComponent.left = this.progressBarLandscapeLeft;
+            this.progressBarWidgetComponent.updateAlignment();
+            this.progressBarWidget.setScale(this.progressBarLandscapeScale, this.progressBarLandscapeScale, 1);
+        }
+    }
+
+    /**
+     * Настраивает Widget для cageWidget
+     */
+    private setupCageWidget(isPortrait: boolean): void {
+        if (!this.cageWidget) return;
+
+        if (isPortrait) {
+            // Portrait: отключаем Widget если он уже создан, восстанавливаем масштаб
+            if (this.cageWidgetComponent) {
+                this.cageWidgetComponent.enabled = false;
+            }
+            this.cageWidget.setScale(this.cagePortraitScale, this.cagePortraitScale, 1);
+        } else {
+            // Landscape: лениво создаём Widget при первом переходе, правый верхний угол
+            if (!this.cageWidgetComponent) {
+                this.cageWidgetComponent = this.cageWidget.getComponent(Widget) ?? this.cageWidget.addComponent(Widget);
+            }
+            this.cageWidgetComponent.enabled = true;
+            this.cageWidgetComponent.isAlignTop = true;
+            this.cageWidgetComponent.isAlignBottom = false;
+            this.cageWidgetComponent.isAlignLeft = false;
+            this.cageWidgetComponent.isAlignRight = true;
+            this.cageWidgetComponent.isAlignHorizontalCenter = false;
+            this.cageWidgetComponent.isAlignVerticalCenter = false;
+            this.cageWidgetComponent.top = this.cageLandscapeTop;
+            this.cageWidgetComponent.right = this.cageLandscapeRight;
+            this.cageWidgetComponent.updateAlignment();
+            this.cageWidget.setScale(this.cageLandscapeScale, this.cageLandscapeScale, 1);
+        }
+    }
+
+    /**
+     * Настраивает Widget для explainerMessage
+     */
+    private setupExplainerMessageWidget(isPortrait: boolean): void {
+        if (!this.explainerMessage) return;
+
+        if (isPortrait) {
+            if (this.explainerMessageWidgetComponent) {
+                this.explainerMessageWidgetComponent.enabled = false;
+            }
+            this.explainerMessage.setScale(this.explainerMessagePortraitScale, this.explainerMessagePortraitScale, 1);
+        } else {
+            if (!this.explainerMessageWidgetComponent) {
+                this.explainerMessageWidgetComponent = this.explainerMessage.getComponent(Widget) ?? this.explainerMessage.addComponent(Widget);
+            }
+            this.explainerMessageWidgetComponent.enabled = true;
+            this.explainerMessageWidgetComponent.isAlignTop = true;
+            this.explainerMessageWidgetComponent.isAlignBottom = false;
+            this.explainerMessageWidgetComponent.isAlignLeft = true;
+            this.explainerMessageWidgetComponent.isAlignRight = false;
+            this.explainerMessageWidgetComponent.isAlignHorizontalCenter = false;
+            this.explainerMessageWidgetComponent.isAlignVerticalCenter = false;
+            this.explainerMessageWidgetComponent.top = this.explainerMessageLandscapeTop;
+            this.explainerMessageWidgetComponent.left = this.explainerMessageLandscapeLeft;
+            this.explainerMessageWidgetComponent.updateAlignment();
+            this.explainerMessage.setScale(this.explainerMessageLandscapeScale, this.explainerMessageLandscapeScale, 1);
+        }
+    }
+
+    /**
+     * Настраивает Widget для explainerMessage001
+     */
+    private setupExplainerMessage001Widget(isPortrait: boolean): void {
+        if (!this.explainerMessage001) return;
+
+        if (isPortrait) {
+            if (this.explainerMessage001WidgetComponent) {
+                this.explainerMessage001WidgetComponent.enabled = false;
+            }
+            this.explainerMessage001.setScale(this.explainerMessage001PortraitScale, this.explainerMessage001PortraitScale, 1);
+        } else {
+            if (!this.explainerMessage001WidgetComponent) {
+                this.explainerMessage001WidgetComponent = this.explainerMessage001.getComponent(Widget) ?? this.explainerMessage001.addComponent(Widget);
+            }
+            this.explainerMessage001WidgetComponent.enabled = true;
+            this.explainerMessage001WidgetComponent.isAlignTop = true;
+            this.explainerMessage001WidgetComponent.isAlignBottom = false;
+            this.explainerMessage001WidgetComponent.isAlignLeft = true;
+            this.explainerMessage001WidgetComponent.isAlignRight = false;
+            this.explainerMessage001WidgetComponent.isAlignHorizontalCenter = false;
+            this.explainerMessage001WidgetComponent.isAlignVerticalCenter = false;
+            this.explainerMessage001WidgetComponent.top = this.explainerMessage001LandscapeTop;
+            this.explainerMessage001WidgetComponent.left = this.explainerMessage001LandscapeLeft;
+            this.explainerMessage001WidgetComponent.updateAlignment();
+            this.explainerMessage001.setScale(this.explainerMessage001LandscapeScale, this.explainerMessage001LandscapeScale, 1);
         }
     }
 
@@ -579,7 +812,9 @@ export class LayoutController extends Component {
         // Берем максимальный scale, чтобы background полностью покрыл экран без черных полос
         const scaleX = screenWidth / this.backgroundOriginalWidth;
         const scaleY = screenHeight / this.backgroundOriginalHeight;
-        const finalScale = Math.max(scaleX, scaleY);
+        const isPortrait = screenHeight > screenWidth;
+        const multiplier = isPortrait ? 1 : this.landscapeBackgroundScale;
+        const finalScale = Math.max(scaleX, scaleY) * multiplier;
 
         // Применяем scale к node, содержащему background
         if (this.background.node) {

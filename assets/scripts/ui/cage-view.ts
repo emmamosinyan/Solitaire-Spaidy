@@ -351,9 +351,10 @@ export class CageView extends Component {
             this.cageSprite.spriteFrame = this.cageOpenedFrame;
         }
 
+        const baseScale = this.node.scale.clone();
         tween(this.node)
-            .to(0.1, { scale: new Vec3(1.07, 1.07, 1) }, { easing: 'sineOut' })
-            .to(0.18, { scale: new Vec3(1, 1, 1) }, { easing: 'backIn' })
+            .to(0.1, { scale: new Vec3(baseScale.x * 1.07, baseScale.y * 1.07, 1) }, { easing: 'sineOut' })
+            .to(0.18, { scale: baseScale }, { easing: 'backIn' })
             .start();
 
         this.exitMascotFromCage();
