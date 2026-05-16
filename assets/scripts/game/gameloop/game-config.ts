@@ -1,4 +1,4 @@
-import { _decorator, Component } from 'cc';
+import { _decorator, Component, CCFloat, CCInteger } from 'cc';
 
 const { ccclass, property } = _decorator;
 
@@ -13,7 +13,7 @@ export class GameConfig extends Component {
      * По умолчанию: [1, 2, 3, 4, 5, 6, 7] для стандартного Solitaire
      */
     @property({
-        type: [Number],
+        type: [CCFloat],
         tooltip: 'Количество карт в каждой tableau колонке (7 колонок)'
     })
     public tableauLayout: number[] = [1, 2, 3, 4, 5, 6, 7];
