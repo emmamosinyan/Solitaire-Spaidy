@@ -84,7 +84,7 @@ export class LayoutController extends Component {
     private cageLandscapeScale: number = 0.5;
 
     @property({ tooltip: 'CageWidget — отступ сверху в portrait (при возврате из landscape)' })
-    private cagePortraitTop: number = 50;
+    private cagePortraitTop: number = 125;
 
     @property({ tooltip: 'CageWidget — отступ справа в portrait (при возврате из landscape)' })
     private cagePortraitRight: number = 50;
@@ -511,7 +511,7 @@ export class LayoutController extends Component {
                 this.logoWidgetComponent.isAlignRight = false;
                 this.logoWidgetComponent.isAlignHorizontalCenter = false;
                 this.logoWidgetComponent.isAlignVerticalCenter = false;
-                this.logoWidgetComponent.top = 100;
+                this.logoWidgetComponent.top = 125;
                 this.logoWidgetComponent.left = 50;
                 this.logoWidgetComponent.updateAlignment();
                 this.logoWidget.setScale(this.logoPortraitScale, this.logoPortraitScale, 1);

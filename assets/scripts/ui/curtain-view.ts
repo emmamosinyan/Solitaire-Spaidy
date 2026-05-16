@@ -1,4 +1,4 @@
-import { _decorator, Component, Node, tween, UIOpacity } from 'cc';
+import { _decorator, Component, Node, tween, UIOpacity, CCFloat } from 'cc';
 import { GlobalEventBus } from 'db://assets/scripts/common/event-bus';
 import { 
     EVT_CURTAIN_FADE_IN_REQUESTED, 
@@ -14,7 +14,7 @@ export class CurtainView extends Component {
     @property({ type: Node })
     curtainNode: Node | null = null;
 
-    @property({ type: Number })
+    @property({ type: CCFloat })
     fadeDuration: number = 0.5;
 
     private uiOpacity: UIOpacity | null = null;
